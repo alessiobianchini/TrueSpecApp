@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
+    "diff:local": "tsx src/cli.ts diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on none",
+    "diff:ci": "tsx src/cli.ts diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on breaking",
     "build": "tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
