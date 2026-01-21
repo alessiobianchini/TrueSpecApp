@@ -15,7 +15,7 @@ program
   .description("Compare two OpenAPI specs")
   .requiredOption("--base <file>", "Path to the base OpenAPI spec")
   .requiredOption("--head <file>", "Path to the head OpenAPI spec")
-  .option("--fail-on <level>", "breaking | warning | none", "breaking")
+  .option("--fail-on <level>", "none | breaking | warning", "none")
   .option("--format <format>", "text | markdown | json", "text")
   .option("--json", "Output JSON (deprecated)")
   .action(async (options) => {
@@ -23,11 +23,14 @@ program
       const baseSpec = await loadSpec(options.base);
       const headSpec = await loadSpec(options.head);
       const result: DiffResult = diffSpecs(baseSpec, headSpec);
-      const failOn = String(options.failOn || "breaking").toLowerCase();
+      const failOn = String(options.failOn || "none").toLowerCase();
       const format = String(options.json ? "json" : options.format || "text").toLowerCase();
 
       if (!["text", "markdown", "json"].includes(format)) {
         throw new Error(`Unsupported format: ${format}`);
+      }
+      if (!["none", "breaking", "warning"].includes(failOn)) {
+        throw new Error(`Unsupported fail-on level: ${failOn}`);
       }
 
       if (format === "json") {

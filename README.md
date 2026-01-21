@@ -11,26 +11,26 @@ pnpm install
 ## Usage
 
 ```bash
-pnpm dev -- diff --base openapi-base.yaml --head openapi-head.yaml
+pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml
 ```
 
-Fail only on breaking changes (default):
+Fail on breaking changes (CI):
 
 ```bash
-pnpm dev -- diff --base openapi-base.yaml --head openapi-head.yaml --fail-on breaking
+pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on breaking
 ```
 
-Do not fail the command:
+Do not fail the command (default):
 
 ```bash
-pnpm dev -- diff --base openapi-base.yaml --head openapi-head.yaml --fail-on none
+pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on none
 ```
 
 Build and run:
 
 ```bash
 pnpm build
-node dist/cli.js diff --base openapi-base.yaml --head openapi-head.yaml
+node dist/cli.js diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml
 ```
 
 ## Output
@@ -42,13 +42,13 @@ node dist/cli.js diff --base openapi-base.yaml --head openapi-head.yaml
 ## JSON output
 
 ```bash
-pnpm dev -- diff --base openapi-base.yaml --head openapi-head.yaml --json
+pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --json
 ```
 
 ## Output formats
 
 ```bash
-pnpm dev -- diff --base openapi-base.yaml --head openapi-head.yaml --format markdown
+pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --format markdown
 ```
 
 Supported formats:
