@@ -38,6 +38,10 @@ const HTTP_METHODS = [
   "trace",
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function normalizeMethod(method: string): string {
   return method.toUpperCase();
 }
@@ -76,6 +80,50 @@ function getResponses(operation: Record<string, unknown>): Set<string> {
   return new Set(Object.keys(responses));
 }
 
+function extractSchema(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const schema = value.schema;
+  return isRecord(schema) ? schema : undefined;
+}
+
+function getSchemaFromContent(content: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!content) return undefined;
+  const jsonEntry = content["application/json"];
+  const jsonSchema = extractSchema(jsonEntry);
+  if (jsonSchema) return jsonSchema;
+
+  const jsonLikeKey = Object.keys(content).find((key) => key.endsWith("+json") || key.includes("json"));
+  if (jsonLikeKey) {
+    const schema = extractSchema(content[jsonLikeKey]);
+    if (schema) return schema;
+  }
+
+  const firstEntry = Object.values(content)[0];
+  return extractSchema(firstEntry);
+}
+
+function getRequestSchema(operation: Record<string, unknown>): Record<string, unknown> | undefined {
+  const requestBody = operation.requestBody as Record<string, unknown> | undefined;
+  if (!requestBody) return undefined;
+  const content = requestBody.content as Record<string, unknown> | undefined;
+  return getSchemaFromContent(content);
+}
+
+function getResponseSchemas(operation: Record<string, unknown>): Map<string, Record<string, unknown>> {
+  const responses = operation.responses as Record<string, unknown> | undefined;
+  const result = new Map<string, Record<string, unknown>>();
+  if (!responses) return result;
+  Object.entries(responses).forEach(([status, response]) => {
+    if (!isRecord(response)) return;
+    const content = response.content as Record<string, unknown> | undefined;
+    const schema = getSchemaFromContent(content);
+    if (schema) {
+      result.set(status, schema);
+    }
+  });
+  return result;
+}
+
 function getRequiredParams(pathItem: Record<string, unknown>, operation: Record<string, unknown>): Set<string> {
   const params: Array<Record<string, unknown>> = [];
   const pathParams = pathItem.parameters as Array<Record<string, unknown>> | undefined;
@@ -105,6 +153,90 @@ function isRequestBodyRequired(operation: Record<string, unknown>): boolean {
   const requestBody = operation.requestBody as Record<string, unknown> | undefined;
   if (!requestBody) return false;
   return Boolean(requestBody.required);
+}
+
+function getEnumValues(schema: Record<string, unknown>): Set<string> | null {
+  const raw = schema.enum;
+  if (!Array.isArray(raw)) return null;
+  return new Set(raw.map((value) => JSON.stringify(value)));
+}
+
+type ObjectShape = {
+  properties: Record<string, Record<string, unknown>>;
+};
+
+function getObjectShape(schema: Record<string, unknown>): ObjectShape | null {
+  const properties: Record<string, Record<string, unknown>> = {};
+  const allOf = schema.allOf;
+  if (Array.isArray(allOf)) {
+    allOf.forEach((entry) => {
+      if (!isRecord(entry)) return;
+      const shape = getObjectShape(entry);
+      if (!shape) return;
+      Object.assign(properties, shape.properties);
+    });
+  }
+
+  if (isRecord(schema.properties)) {
+    Object.entries(schema.properties).forEach(([key, value]) => {
+      if (isRecord(value)) {
+        properties[key] = value;
+      }
+    });
+  }
+
+  if (Object.keys(properties).length === 0) {
+    return null;
+  }
+
+  return { properties };
+}
+
+function compareSchema(
+  baseSchema: Record<string, unknown>,
+  headSchema: Record<string, unknown>,
+  schemaPath: string,
+  items: DiffItem[],
+  ref: OperationRef,
+  visitedBase: WeakSet<object>,
+  visitedHead: WeakSet<object>,
+) {
+  if (visitedBase.has(baseSchema) || visitedHead.has(headSchema)) return;
+  visitedBase.add(baseSchema);
+  visitedHead.add(headSchema);
+
+  const baseEnum = getEnumValues(baseSchema);
+  const headEnum = getEnumValues(headSchema);
+  if (baseEnum || headEnum) {
+    const baseValues = baseEnum ? [...baseEnum].sort().join(",") : "";
+    const headValues = headEnum ? [...headEnum].sort().join(",") : "";
+    if (baseValues !== headValues) {
+      addItem(items, "breaking", "schema-enum-changed", `Enum changed at ${schemaPath}`, ref);
+    }
+  }
+
+  const baseType = String(baseSchema.type || "");
+  const headType = String(headSchema.type || "");
+  const baseItems = isRecord(baseSchema.items) ? baseSchema.items : undefined;
+  const headItems = isRecord(headSchema.items) ? headSchema.items : undefined;
+  if (baseType === "array" || headType === "array" || baseItems || headItems) {
+    if (baseItems && headItems) {
+      compareSchema(baseItems, headItems, `${schemaPath}[]`, items, ref, visitedBase, visitedHead);
+    }
+  }
+
+  const baseShape = getObjectShape(baseSchema);
+  const headShape = getObjectShape(headSchema);
+  if (baseShape && headShape) {
+    Object.entries(baseShape.properties).forEach(([key, baseProp]) => {
+      const headProp = headShape.properties[key];
+      if (!headProp) {
+        addItem(items, "breaking", "schema-field-removed", `Removed field ${schemaPath}.${key}`, ref);
+        return;
+      }
+      compareSchema(baseProp, headProp, `${schemaPath}.${key}`, items, ref, visitedBase, visitedHead);
+    });
+  }
 }
 
 function addItem(items: DiffItem[], severity: Severity, code: string, message: string, ref?: OperationRef) {
@@ -165,6 +297,36 @@ export function diffSpecs(baseSpec: Record<string, unknown>, headSpec: Record<st
     if (!baseBodyRequired && headBodyRequired) {
       addItem(items, "warning", "request-body-required", `Request body is now required for ${key}`, headOp);
     }
+
+    const baseRequestSchema = getRequestSchema(baseOp.operation);
+    const headRequestSchema = getRequestSchema(headOp.operation);
+    if (baseRequestSchema && headRequestSchema) {
+      compareSchema(
+        baseRequestSchema,
+        headRequestSchema,
+        "request.body",
+        items,
+        headOp,
+        new WeakSet(),
+        new WeakSet(),
+      );
+    }
+
+    const baseResponseSchemas = getResponseSchemas(baseOp.operation);
+    const headResponseSchemas = getResponseSchemas(headOp.operation);
+    baseResponseSchemas.forEach((baseSchema, status) => {
+      const headSchema = headResponseSchemas.get(status);
+      if (!headSchema) return;
+      compareSchema(
+        baseSchema,
+        headSchema,
+        `response.${status}.body`,
+        items,
+        headOp,
+        new WeakSet(),
+        new WeakSet(),
+      );
+    });
   });
 
   const summary = {
