@@ -2,7 +2,22 @@
 
 Detect OpenAPI spec drift by comparing two OpenAPI files.
 
-## Install
+## Install (npm)
+
+Quick run:
+
+```bash
+npx truespec diff --base openapi-base.yaml --head openapi-head.yaml
+```
+
+Global install:
+
+```bash
+npm install -g truespec
+truespec diff --base openapi-base.yaml --head openapi-head.yaml
+```
+
+## Local development
 
 ```bash
 pnpm install
@@ -65,7 +80,7 @@ Supported formats:
 
 ## GitHub Actions (PR summary)
 
-Use the CI helper script to write a Markdown report into the PR summary:
+Write the Markdown report into the PR summary:
 
 ```yaml
 name: TrueSpec Diff
@@ -87,18 +102,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - name: Prepare base spec
         run: |
           git show origin/${{ github.base_ref }}:specs/openapi.yaml > /tmp/openapi-base.yaml
       - name: TrueSpec diff
         run: |
-          pnpm tsx scripts/ci-diff.ts \
+          set -euo pipefail
+          npx truespec diff \
             --base /tmp/openapi-base.yaml \
             --head specs/openapi.yaml \
             --fail-on breaking \
-            --format markdown
+            --format markdown | tee -a "$GITHUB_STEP_SUMMARY"
 ```
 
 See `examples/github-action.yml` for the ready-to-copy workflow file.

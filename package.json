@@ -1,8 +1,34 @@
 {
-  "name": "truespec-cli",
-  "version": "0.0.1",
+  "name": "truespec",
+  "version": "0.1.0",
   "description": "OpenAPI spec drift checks for CI and local use.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alessiobianchini/TrueSpecApp.git"
+  },
+  "homepage": "https://github.com/alessiobianchini/TrueSpecApp",
+  "bugs": {
+    "url": "https://github.com/alessiobianchini/TrueSpecApp/issues"
+  },
+  "keywords": [
+    "openapi",
+    "api",
+    "diff",
+    "spec",
+    "ci",
+    "cli"
+  ],
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "truespec": "dist/cli.js"
   },
@@ -12,6 +38,7 @@
     "diff:ci": "tsx src/cli.ts diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on breaking",
     "diff:warn": "tsx src/cli.ts diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml --fail-on warning",
     "build": "tsup",
+    "prepublishOnly": "pnpm build",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

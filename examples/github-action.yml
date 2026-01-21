@@ -17,15 +17,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
       - name: Prepare base spec
         run: |
           git show origin/${{ github.base_ref }}:specs/openapi.yaml > /tmp/openapi-base.yaml
       - name: TrueSpec diff
         run: |
-          pnpm tsx scripts/ci-diff.ts \
+          set -euo pipefail
+          npx truespec diff \
             --base /tmp/openapi-base.yaml \
             --head specs/openapi.yaml \
             --fail-on breaking \
-            --format markdown
+            --format markdown | tee -a "$GITHUB_STEP_SUMMARY"
