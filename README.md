@@ -62,3 +62,45 @@ Supported formats:
 - `0`: completed, policy passed
 - `1`: policy failed (`--fail-on`)
 - `2`: runtime error (invalid spec, parse error, etc.)
+
+## GitHub Actions (PR summary)
+
+Use the CI helper script to write a Markdown report into the PR summary:
+
+```yaml
+name: TrueSpec Diff
+on:
+  pull_request:
+    paths:
+      - "specs/openapi.yaml"
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare base spec
+        run: |
+          git show origin/${{ github.base_ref }}:specs/openapi.yaml > /tmp/openapi-base.yaml
+      - name: TrueSpec diff
+        run: |
+          pnpm tsx scripts/ci-diff.ts \
+            --base /tmp/openapi-base.yaml \
+            --head specs/openapi.yaml \
+            --fail-on breaking \
+            --format markdown
+```
+
+See `examples/github-action.yml` for the ready-to-copy workflow file.
+
+The script also supports env vars: `TRUESPEC_BASE`, `TRUESPEC_HEAD`, `TRUESPEC_FAIL_ON`, `TRUESPEC_FORMAT`.
