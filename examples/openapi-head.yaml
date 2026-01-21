@@ -9,6 +9,16 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - active
+                      - pending
         "422":
           description: Validation error
   /v1/plans:

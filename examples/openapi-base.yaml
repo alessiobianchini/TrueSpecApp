@@ -9,6 +9,18 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - active
+                      - disabled
+                  email:
+                    type: string
         "404":
           description: Not found
   /v1/users/{id}:
