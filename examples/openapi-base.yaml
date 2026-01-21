@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: TrueSpec Sample API
+  version: 1.0.0
+paths:
+  /v1/users:
+    get:
+      summary: List users
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not found
+  /v1/users/{id}:
+    delete:
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+  /v1/plans:
+    put:
+      summary: Update plan
+      requestBody:
+        description: Plan update
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Updated
