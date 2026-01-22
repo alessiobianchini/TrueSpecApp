@@ -6,6 +6,7 @@ import SwaggerParser from "@apidevtools/swagger-parser";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_CACHE_TTL_SECONDS = 300;
+const TRUTHY = new Set(["1", "true", "yes"]);
 
 function isUrl(value: string): boolean {
   try {
@@ -33,6 +34,38 @@ function isCacheEnabled(): boolean {
   return raw !== "0" && raw !== "false";
 }
 
+function shouldBustCache(): boolean {
+  const raw = (process.env.TRUESPEC_CACHE_BUST || "").toLowerCase();
+  return TRUTHY.has(raw);
+}
+
+function parseHeaderEnv(): Record<string, string> {
+  const raw = process.env.TRUESPEC_HTTP_HEADERS;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("TRUESPEC_HTTP_HEADERS must be a JSON object.");
+    }
+    return Object.entries(parsed).reduce<Record<string, string>>((acc, [key, value]) => {
+      acc[key] = String(value);
+      return acc;
+    }, {});
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid JSON";
+    throw new Error(`Invalid TRUESPEC_HTTP_HEADERS: ${message}`);
+  }
+}
+
+function applyAuthHeader(headers: Record<string, string>) {
+  const token = process.env.TRUESPEC_AUTH_TOKEN;
+  if (!token) return;
+  const hasAuth = Object.keys(headers).some((key) => key.toLowerCase() === "authorization");
+  if (hasAuth) return;
+  const scheme = process.env.TRUESPEC_AUTH_SCHEME || "Bearer";
+  headers.Authorization = `${scheme} ${token}`;
+}
+
 async function isFresh(pathname: string, ttlMs: number): Promise<boolean> {
   if (ttlMs <= 0) return false;
   try {
@@ -57,8 +90,9 @@ async function loadRemoteSpec(specUrl: string): Promise<string> {
   const cacheKey = crypto.createHash("sha256").update(specUrl).digest("hex").slice(0, 16);
   const cachePath = path.join(cacheDir, `${cacheKey}${extension}`);
   const ttlMs = getCacheTtlMs();
+  const bypassCache = shouldBustCache() || !isCacheEnabled();
 
-  if (isCacheEnabled() && (await isFresh(cachePath, ttlMs))) {
+  if (!bypassCache && (await isFresh(cachePath, ttlMs))) {
     return cachePath;
   }
 
@@ -66,7 +100,16 @@ async function loadRemoteSpec(specUrl: string): Promise<string> {
     throw new Error("Fetch is not available in this runtime.");
   }
 
-  const response = await fetch(specUrl);
+  const headers = parseHeaderEnv();
+  applyAuthHeader(headers);
+  if (shouldBustCache() && !Object.keys(headers).some((key) => key.toLowerCase() === "cache-control")) {
+    headers["Cache-Control"] = "no-cache";
+  }
+
+  const response = await fetch(specUrl, {
+    headers,
+    cache: shouldBustCache() ? "no-store" : "default",
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch spec (${response.status}) ${specUrl}`);
   }

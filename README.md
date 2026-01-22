@@ -35,10 +35,26 @@ Remote specs (URLs) are supported:
 npx truespec diff --base https://example.com/openapi-base.yaml --head https://example.com/openapi-head.yaml
 ```
 
+Add auth headers for private URLs:
+
+```bash
+TRUESPEC_AUTH_TOKEN=your-token \
+npx truespec diff --base https://example.com/openapi-base.yaml --head https://example.com/openapi-head.yaml
+```
+
+For custom headers:
+
+```bash
+TRUESPEC_HTTP_HEADERS='{"Authorization":"Bearer your-token","X-API-Key":"abc"}' \
+npx truespec diff --base https://example.com/openapi-base.yaml --head https://example.com/openapi-head.yaml
+```
+
 Caching for remote specs:
 
 - `TRUESPEC_CACHE=0` disables caching
 - `TRUESPEC_CACHE_TTL_SECONDS=300` sets the cache TTL (default 300s)
+- `TRUESPEC_CACHE_BUST=1` forces a fresh download
+- `TRUESPEC_AUTH_SCHEME=Bearer` (optional override for auth token scheme)
 
 Fail on breaking changes (CI):
 
