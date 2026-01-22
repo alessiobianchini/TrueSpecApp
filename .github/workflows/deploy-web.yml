@@ -17,17 +17,14 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.10.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: apps/web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm prune --prod
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm install
+      - run: npm run build
+      - run: npm prune --omit=dev
       - uses: azure/webapps-deploy@v2
         with:
           app-name: truespecapp-web
