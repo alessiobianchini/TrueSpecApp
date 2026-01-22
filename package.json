@@ -1,6 +1,6 @@
 {
   "name": "truespec",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenAPI spec drift checks for CI and local use.",
   "license": "MIT",
   "repository": {
