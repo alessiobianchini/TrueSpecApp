@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --app-bg: #0a0d12;
+  --app-panel: #0f1724;
+  --app-panel-strong: #0b1220;
+  --app-border: rgba(148, 163, 184, 0.22);
+  --accent-from: #38bdf8;
+  --accent-to: #2563eb;
+  --accent-glow: rgba(56, 189, 248, 0.22);
+}
+
+@theme inline {
+  --color-background: var(--app-bg);
+  --color-foreground: #e2e8f0;
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(700px circle at 15% -10%, rgba(56, 189, 248, 0.18), transparent 55%),
+    radial-gradient(600px circle at 90% -20%, rgba(249, 115, 22, 0.2), transparent 55%),
+    linear-gradient(180deg, #0a0d12 0%, #0f1724 55%, #0a0d12 100%);
+  color: #e2e8f0;
+  font-family: var(--font-sans), "Space Grotesk", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(transparent 94%, rgba(148, 163, 184, 0.08) 94%),
+    linear-gradient(90deg, transparent 94%, rgba(148, 163, 184, 0.06) 94%);
+  background-size: 48px 48px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: -1;
+}
+
+a {
+  color: inherit;
+}
+
+.accent-gradient {
+  background: linear-gradient(120deg, var(--accent-from), var(--accent-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 18px var(--accent-glow);
+}
+
+.panel {
+  background: rgba(15, 23, 36, 0.75);
+  border: 1px solid var(--app-border);
+  box-shadow: 0 24px 50px rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(14px);
+}
+
+.panel-strong {
+  background: rgba(11, 18, 32, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  box-shadow: 0 30px 70px rgba(2, 6, 23, 0.4);
+}
+
+.muted {
+  color: rgba(226, 232, 240, 0.7);
+}
