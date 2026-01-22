@@ -167,6 +167,30 @@ function getRequiredFields(schema: Record<string, unknown>): Set<string> {
   return new Set(raw.map((value) => String(value)));
 }
 
+type TypeInfo = {
+  type: string | null;
+  nullable: boolean;
+};
+
+function normalizeTypes(rawType: unknown): string[] {
+  if (Array.isArray(rawType)) return rawType.map((value) => String(value));
+  if (typeof rawType === "string") return [rawType];
+  return [];
+}
+
+function getTypeInfo(schema: Record<string, unknown>): TypeInfo {
+  const rawTypes = normalizeTypes(schema.type);
+  let nullable = schema.nullable === true;
+  if (rawTypes.includes("null")) {
+    nullable = true;
+  }
+  const nonNullTypes = rawTypes.filter((type) => type !== "null");
+  if (nonNullTypes.length === 0) {
+    return { type: null, nullable };
+  }
+  return { type: nonNullTypes.sort().join("|"), nullable };
+}
+
 type ObjectShape = {
   properties: Record<string, Record<string, unknown>>;
 };
@@ -204,6 +228,37 @@ function getSchemaContext(schemaPath: string): "request" | "response" | "other" 
   return "other";
 }
 
+function getSchemaAlternatives(schema: Record<string, unknown>): Record<string, unknown>[] {
+  const alternatives: Record<string, unknown>[] = [];
+  const oneOf = schema.oneOf;
+  const anyOf = schema.anyOf;
+  if (Array.isArray(oneOf)) {
+    oneOf.forEach((entry) => {
+      if (isRecord(entry)) alternatives.push(entry);
+    });
+  }
+  if (Array.isArray(anyOf)) {
+    anyOf.forEach((entry) => {
+      if (isRecord(entry)) alternatives.push(entry);
+    });
+  }
+  return alternatives;
+}
+
+function getSchemaSignature(schema: Record<string, unknown>): string {
+  if (typeof schema.$ref === "string") {
+    return `ref:${schema.$ref}`;
+  }
+  const info = getTypeInfo(schema);
+  const typeValue = info.type || "unknown";
+  const format = typeof schema.format === "string" ? schema.format : "";
+  const title = typeof schema.title === "string" ? schema.title : "";
+  const nullable = info.nullable ? "|nullable" : "";
+  const formatPart = format ? `|format:${format}` : "";
+  const titlePart = title ? `|title:${title}` : "";
+  return `type:${typeValue}${nullable}${formatPart}${titlePart}`;
+}
+
 function compareSchema(
   baseSchema: Record<string, unknown>,
   headSchema: Record<string, unknown>,
@@ -217,8 +272,18 @@ function compareSchema(
   visitedBase.add(baseSchema);
   visitedHead.add(headSchema);
 
-  const baseType = String(baseSchema.type || "");
-  const headType = String(headSchema.type || "");
+  const baseTypeInfo = getTypeInfo(baseSchema);
+  const headTypeInfo = getTypeInfo(headSchema);
+  const context = getSchemaContext(schemaPath);
+  const baseType = baseTypeInfo.type || "";
+  const headType = headTypeInfo.type || "";
+
+  if (baseTypeInfo.nullable && !headTypeInfo.nullable) {
+    addItem(items, "breaking", "schema-nullable-removed", `Nullable removed at ${schemaPath}`, ref);
+  } else if (!baseTypeInfo.nullable && headTypeInfo.nullable) {
+    addItem(items, "info", "schema-nullable-added", `Nullable added at ${schemaPath}`, ref);
+  }
+
   if (baseType && headType && baseType !== headType) {
     addItem(
       items,
@@ -228,6 +293,34 @@ function compareSchema(
       ref
     );
     return;
+  }
+
+  const baseAlternatives = getSchemaAlternatives(baseSchema);
+  const headAlternatives = getSchemaAlternatives(headSchema);
+  if (baseAlternatives.length > 0 || headAlternatives.length > 0) {
+    const baseSet = new Set(baseAlternatives.map(getSchemaSignature));
+    const headSet = new Set(headAlternatives.map(getSchemaSignature));
+    const removed = [...baseSet].filter((value) => !headSet.has(value));
+    const added = [...headSet].filter((value) => !baseSet.has(value));
+    if (removed.length > 0) {
+      addItem(
+        items,
+        "breaking",
+        "schema-union-removed",
+        `Removed union variant at ${schemaPath} (${removed.join(", ")})`,
+        ref
+      );
+    }
+    if (added.length > 0) {
+      const severity: Severity = context === "request" ? "info" : "info";
+      addItem(
+        items,
+        severity,
+        "schema-union-added",
+        `Added union variant at ${schemaPath} (${added.join(", ")})`,
+        ref
+      );
+    }
   }
 
   const baseEnum = getEnumValues(baseSchema);
@@ -267,7 +360,6 @@ function compareSchema(
   const baseShape = getObjectShape(baseSchema);
   const headShape = getObjectShape(headSchema);
   if (baseShape && headShape) {
-    const context = getSchemaContext(schemaPath);
     const baseRequired = getRequiredFields(baseSchema);
     const headRequired = getRequiredFields(headSchema);
     headRequired.forEach((key) => {

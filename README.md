@@ -88,9 +88,9 @@ node dist/cli.js diff --base examples/openapi-base.yaml --head examples/openapi-
 
 ## Output
 
-- `breaking`: removed operations, removed response status codes, removed schema fields, enum/type changes
+- `breaking`: removed operations, removed response status codes, removed schema fields, enum/type/nullable changes, removed union variants
 - `warning`: newly required params, request bodies, or request fields
-- `info`: added operations, response status codes, or response fields
+- `info`: added operations, response status codes, response fields, nullable or union variants
 
 Example output:
 
