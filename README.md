@@ -42,6 +42,17 @@ TRUESPEC_AUTH_TOKEN=your-token \
 npx truespec diff --base https://example.com/openapi-base.yaml --head https://example.com/openapi-head.yaml
 ```
 
+CLI flags also work:
+
+```bash
+npx truespec diff \
+  --base https://example.com/openapi-base.yaml \
+  --head https://example.com/openapi-head.yaml \
+  --auth-token your-token \
+  --auth-scheme Bearer \
+  --cache-bust
+```
+
 For custom headers:
 
 ```bash

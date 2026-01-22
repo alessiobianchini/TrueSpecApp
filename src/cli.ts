@@ -17,9 +17,26 @@ program
   .requiredOption("--head <file>", "Path to the head OpenAPI spec")
   .option("--fail-on <level>", "none | breaking | warning", "none")
   .option("--format <format>", "text | markdown | json", "text")
+  .option("--auth-token <token>", "Auth token for remote specs")
+  .option("--auth-scheme <scheme>", "Auth scheme for remote specs (default: Bearer)")
+  .option("--headers <json>", "Extra HTTP headers as JSON for remote specs")
+  .option("--cache-bust", "Disable cache for remote specs")
   .option("--json", "Output JSON (deprecated)")
   .action(async (options) => {
     try {
+      if (options.authToken) {
+        process.env.TRUESPEC_AUTH_TOKEN = options.authToken;
+      }
+      if (options.authScheme) {
+        process.env.TRUESPEC_AUTH_SCHEME = options.authScheme;
+      }
+      if (options.headers) {
+        process.env.TRUESPEC_HTTP_HEADERS = options.headers;
+      }
+      if (options.cacheBust) {
+        process.env.TRUESPEC_CACHE_BUST = "1";
+      }
+
       const baseSpec = await loadSpec(options.base);
       const headSpec = await loadSpec(options.head);
       const result: DiffResult = diffSpecs(baseSpec, headSpec);
