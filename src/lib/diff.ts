@@ -161,6 +161,12 @@ function getEnumValues(schema: Record<string, unknown>): Set<string> | null {
   return new Set(raw.map((value) => JSON.stringify(value)));
 }
 
+function getRequiredFields(schema: Record<string, unknown>): Set<string> {
+  const raw = schema.required;
+  if (!Array.isArray(raw)) return new Set();
+  return new Set(raw.map((value) => String(value)));
+}
+
 type ObjectShape = {
   properties: Record<string, Record<string, unknown>>;
 };
@@ -192,6 +198,12 @@ function getObjectShape(schema: Record<string, unknown>): ObjectShape | null {
   return { properties };
 }
 
+function getSchemaContext(schemaPath: string): "request" | "response" | "other" {
+  if (schemaPath.startsWith("request.")) return "request";
+  if (schemaPath.startsWith("response.")) return "response";
+  return "other";
+}
+
 function compareSchema(
   baseSchema: Record<string, unknown>,
   headSchema: Record<string, unknown>,
@@ -204,6 +216,19 @@ function compareSchema(
   if (visitedBase.has(baseSchema) || visitedHead.has(headSchema)) return;
   visitedBase.add(baseSchema);
   visitedHead.add(headSchema);
+
+  const baseType = String(baseSchema.type || "");
+  const headType = String(headSchema.type || "");
+  if (baseType && headType && baseType !== headType) {
+    addItem(
+      items,
+      "breaking",
+      "schema-type-changed",
+      `Type changed at ${schemaPath} (${baseType} -> ${headType})`,
+      ref
+    );
+    return;
+  }
 
   const baseEnum = getEnumValues(baseSchema);
   const headEnum = getEnumValues(headSchema);
@@ -231,8 +256,6 @@ function compareSchema(
     }
   }
 
-  const baseType = String(baseSchema.type || "");
-  const headType = String(headSchema.type || "");
   const baseItems = isRecord(baseSchema.items) ? baseSchema.items : undefined;
   const headItems = isRecord(headSchema.items) ? headSchema.items : undefined;
   if (baseType === "array" || headType === "array" || baseItems || headItems) {
@@ -244,6 +267,15 @@ function compareSchema(
   const baseShape = getObjectShape(baseSchema);
   const headShape = getObjectShape(headSchema);
   if (baseShape && headShape) {
+    const context = getSchemaContext(schemaPath);
+    const baseRequired = getRequiredFields(baseSchema);
+    const headRequired = getRequiredFields(headSchema);
+    headRequired.forEach((key) => {
+      if (baseRequired.has(key)) return;
+      const severity = context === "request" ? "warning" : "info";
+      addItem(items, severity, "schema-required-added", `New required field ${schemaPath}.${key}`, ref);
+    });
+
     Object.entries(baseShape.properties).forEach(([key, baseProp]) => {
       const headProp = headShape.properties[key];
       if (!headProp) {
@@ -251,6 +283,13 @@ function compareSchema(
         return;
       }
       compareSchema(baseProp, headProp, `${schemaPath}.${key}`, items, ref, visitedBase, visitedHead);
+    });
+
+    Object.entries(headShape.properties).forEach(([key]) => {
+      if (baseShape.properties[key]) return;
+      if (context === "response") {
+        addItem(items, "info", "schema-field-added", `Added field ${schemaPath}.${key}`, ref);
+      }
     });
   }
 }
