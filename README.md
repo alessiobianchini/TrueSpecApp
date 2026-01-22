@@ -29,6 +29,17 @@ pnpm install
 pnpm dev -- diff --base examples/openapi-base.yaml --head examples/openapi-head.yaml
 ```
 
+Remote specs (URLs) are supported:
+
+```bash
+npx truespec diff --base https://example.com/openapi-base.yaml --head https://example.com/openapi-head.yaml
+```
+
+Caching for remote specs:
+
+- `TRUESPEC_CACHE=0` disables caching
+- `TRUESPEC_CACHE_TTL_SECONDS=300` sets the cache TTL (default 300s)
+
 Fail on breaking changes (CI):
 
 ```bash
