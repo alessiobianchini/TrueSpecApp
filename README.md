@@ -50,9 +50,33 @@ node dist/cli.js diff --base examples/openapi-base.yaml --head examples/openapi-
 
 ## Output
 
-- `breaking`: removed operations, removed response status codes, removed schema fields, enum changes
-- `warning`: newly required params or request bodies
-- `info`: added operations or response status codes
+- `breaking`: removed operations, removed response status codes, removed schema fields, enum/type changes
+- `warning`: newly required params, request bodies, or request fields
+- `info`: added operations, response status codes, or response fields
+
+Example output:
+
+```text
+Summary
+Breaking: 5 | Warning: 3 | Info: 3
+
+BREAKING (5)
+- Removed operation DELETE /v1/users/{id}
+- Removed response 404 for GET /v1/users
+- Enum changed at response.200.body.status (removed: "disabled"; added: "pending")
+- Removed field response.200.body.email
+- Type changed at request.body.price (number -> string)
+
+WARNING (3)
+- New required parameter query:dryRun for PUT /v1/plans
+- Request body is now required for PUT /v1/plans
+- New required field request.body.name
+
+INFO (3)
+- Added operation GET /v1/billing
+- Added response 422 for GET /v1/users
+- Added field response.200.body.tier
+```
 
 ## JSON output
 
