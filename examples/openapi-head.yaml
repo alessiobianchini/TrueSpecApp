@@ -19,6 +19,8 @@ paths:
                     enum:
                       - active
                       - pending
+                  tier:
+                    type: string
         "422":
           description: Validation error
   /v1/plans:
@@ -40,6 +42,10 @@ paths:
               properties:
                 name:
                   type: string
+                price:
+                  type: string
+              required:
+                - name
       responses:
         "200":
           description: Updated
