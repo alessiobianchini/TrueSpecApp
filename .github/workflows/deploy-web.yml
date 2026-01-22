@@ -22,7 +22,6 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
-      - run: npm prune --omit=dev
       - uses: azure/webapps-deploy@v2
         with:
           app-name: truespecapp-web
