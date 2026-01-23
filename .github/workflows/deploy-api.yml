@@ -23,8 +23,9 @@ jobs:
       - run: npm install
       - run: npm run prisma:generate
       - run: npm run build
+      - run: zip -qr deploy.zip . -x ".env" ".env.*"
       - uses: azure/webapps-deploy@v2
         with:
           app-name: truespecapp-api
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
-          package: apps/api
+          package: apps/api/deploy.zip

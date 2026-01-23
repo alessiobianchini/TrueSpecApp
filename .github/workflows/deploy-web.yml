@@ -22,8 +22,9 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      - run: zip -qr deploy.zip .
       - uses: azure/webapps-deploy@v2
         with:
           app-name: truespecapp-web
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
-          package: apps/web
+          package: apps/web/deploy.zip
