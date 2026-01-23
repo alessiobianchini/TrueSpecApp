@@ -22,7 +22,13 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
-      - run: zip -qr deploy.zip .
+      - run: |
+          rm -rf .next/standalone/.next/static
+          mkdir -p .next/standalone/.next
+          cp -R .next/static .next/standalone/.next/static
+          cp -R public .next/standalone/public
+          rm -rf node_modules
+          zip -qr deploy.zip .
       - uses: azure/webapps-deploy@v2
         with:
           app-name: truespecapp-web
